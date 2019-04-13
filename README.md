@@ -1,4 +1,2 @@
-import requests
-url = 'https://www.baidu.com'
-response = requests.get(url)
-print(response.text)
+$ git pull origin master //将远程仓库里面的项目拉下来。
+$ dir 
