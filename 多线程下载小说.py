@@ -1,10 +1,13 @@
 #coding:utf-8
+from typing import List, Union
+
 import requests
 import os
 from pyquery import PyQuery as pq
 import re
 import time
 import multiprocessing
+import shutil
 
 def get_pages(url):
     soup=""
@@ -47,7 +50,7 @@ def get_ChartTxt(url,title,num):
     #单独写入这一章
     try:
         with open(r'.\%s\%s %s.txt' % (title, num,subtitle),'w',encoding='utf-8') as f:
-            f.write(subtitle +'\n\n'+ content)
+            f.write('\n\n'+subtitle+'\n'+content)
         f.close()
         print(subtitle,'下载成功')
 
@@ -101,7 +104,10 @@ def thread_getOneBook(indexUrl):
         end = time.time()
         print('下载 %s  完成，运行时间  %0.2f s.' % (title, (end - start)))
         print('开始生成 %s ............' %title)
-        sort_allCharts(r'.',"%s.txt"%title)
+        path = os.getcwd()+'./'+title
+
+        sort_allCharts(path,"%s.txt"%title)
+        shutil.rmtree(title)
         return
 
 #创建下载多本书的进程
@@ -109,8 +115,8 @@ def process_getAllBook(base):
     # 输入你要下载的书的首页地址
     print('主进程的PID：%s' % os.getpid())
     book_indexUrl=[
-        'http://www.yznnw.com/files/article/html/26/26189/index.html',
-        'http://www.yznnw.com/files/article/html/17/17046/index.html'
+        'http://www.yznnw.com/files/article/html/47/47374/index.html',
+
     ]
     print("---------------------开始下载------------------------")
     p = []
@@ -128,27 +134,24 @@ def process_getAllBook(base):
 
 # 合成一本书
 def sort_allCharts(path,filename):
-    lists = os.listdir(path)
-    #对文件排序
-    lists.sort(key=lambda i:int(re.match(r'(\d+)',i).group()))
+    lists = os.listdir(path)#获取当前文件夹中的文件名称列表
+    lists.sort(key=lambda i:int(re.match(r'(\d+)',i).group()))#把章节名进行排序
     #删除旧的书
     if os.path.exists(filename):
         os.remove(filename)
         print('旧的%s已经被删除'%filename)
     #创建新书
-    with open(r'.\%s' %(filename),'a',encoding='utf-8') as f:
+    with open(r'.\%s' %(filename),'w',encoding='utf-8') as f:
         for i in lists:
-            with open(r'.%s\%s' % (path, i),'r',encoding='utf-8') as temp:
-                f.writelines(temp.readlines())
-            temp.close()
+            filepath=path +'/'+i
+            for line in open(filepath,encoding='utf-8'):
+                f.writelines(line)
     f.close()
     print('新的 %s 已经被创建在当前目录 %s'%(filename,os.path.abspath(filename)))
 
 if __name__=="__main__":
 
     process_getAllBook(base='http://www.yznnw.com')
-
-
 
 
 
