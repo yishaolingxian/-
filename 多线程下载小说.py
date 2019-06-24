@@ -64,12 +64,12 @@ def get_ChartTxt(url,title,num):
             pass
         #写入错误文件
         with open("%s\error_url.txt"%(errorPath),'a',encoding='utf-8') as f:
-            f.write(subtitle+"下载失败"+url+'/n')
+            f.write(subtitle+"下载失败"+url+'\n')
         f.close()
     return
 
 
-# 通过首页获得该小说的所有章节链接后下载这本书
+# 通过小说章节首页获得该小说的所有章节链接后下载这本书
 def thread_getOneBook(indexUrl):
     doc = get_pages(indexUrl)
     # 获取书名
@@ -114,10 +114,20 @@ def thread_getOneBook(indexUrl):
 def process_getAllBook(base):
     # 输入你要下载的书的首页地址
     print('主进程的PID：%s' % os.getpid())
-    book_indexUrl=[
-        'http://www.yznnw.com/files/article/html/47/47374/index.html',
-
-    ]
+    def parse_url(url):
+        response = requests.get(url)
+        response.encoding = 'GBK'
+        html = response.text
+        doc = pq(html)
+        return doc
+    doc=parse_url(url=base)
+    items = doc('.t14b').items()
+    book_indexUrl=[]
+    for item in items:
+        book_Url = item.attr("href")
+        doc = parse_url(book_Url)
+        book_index = doc('.listbox .opendir a').attr("href")
+        book_indexUrl.append(book_index)
     print("---------------------开始下载------------------------")
     p = []
     for i in book_indexUrl:
@@ -141,7 +151,8 @@ def sort_allCharts(path,filename):
         os.remove(filename)
         print('旧的%s已经被删除'%filename)
     #创建新书
-    with open(r'.\%s' %(filename),'w',encoding='utf-8') as f:
+    file=os.path.join(r'E:\items\测试\小说',filename)#将合成的txt放入文件夹
+    with open(file,'w',encoding='utf-8') as f:
         for i in lists:
             filepath=path +'/'+i
             for line in open(filepath,encoding='utf-8'):
@@ -151,7 +162,7 @@ def sort_allCharts(path,filename):
 
 if __name__=="__main__":
 
-    process_getAllBook(base='http://www.yznnw.com')
-
+    process_getAllBook(base='http://www.yznnw.com/allvisit-1.html')
+    
 
 
