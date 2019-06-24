@@ -9,11 +9,60 @@ import multiprocessing
 import shutil
 
 def get_pages(url):
-    response = requests.get(url)
-    response.encoding = 'GBK'
-    html = response.text
-    doc = pq(html)
+    try:
+        #   创建请求日志文件夹
+        if 'Log' not in os.listdir('.'):
+            os.mkdir(r".\Log")
+
+        #   请求当前章节页面 params为请求参数
+        response = requests.get(url)
+        response.encoding = 'GBK'
+        html = response.text
+        doc = pq(html)
+
+    except Exception as e:
+        print(url + "错误请求\n")
+        with open(r".\Log\req_error.txt", 'a', encoding='utf-8') as f:
+            f.write(url + " 请求错误\n")
+        f.close()
     return doc
+
+#   通过章节url下载内容，并返回下一页的url
+def get_ChartTxt(url,title,num):
+
+    doc = get_pages(url)
+
+    #获取章节名称
+    subtitle = doc('.bookname h1').text()
+
+    #判断是否有感言
+    if re.search(r'.*?章',subtitle) is None:
+        return
+
+    #获取章节文本
+    content = doc('#content').text()
+
+ # 单独写入这一章
+    try:
+        with open(r'.\%s\%s %s.txt' % (title, num, subtitle), 'w', encoding='utf-8') as f:
+            f.write('\n\n' + subtitle + '\n' + content)
+        f.close()
+        print(subtitle, '下载成功')
+
+    except Exception as e:
+        print(subtitle, '下载失败', url)
+        errorPath = '.\Error\%s' % (title)
+        # 创建错误文件夹
+        try:
+            os.makedirs(errorPath)
+        except Exception as e:
+            pass
+        # 写入错误文件
+        with open("%s\error_url.txt" % (errorPath), 'a', encoding='utf-8') as f:
+            f.write(subtitle + "下载失败" + url + '\n')
+        f.close()
+    return
+
 
 # 通过小说章节首页获得该小说的所有章节链接后下载这本书
 def thread_getOneBook(indexUrl):
@@ -33,41 +82,30 @@ def thread_getOneBook(indexUrl):
         #获取这本书的所有章节
         charts_url = []
         #提取这本书的所有章节不变的url
-        #indexUrl=re.sub(r'index.html','',indexUrl)
+
         charts = doc('#list ._chapter li a').items()
         for i in charts:
             charts_url.append(i.attr["href"])
-            get_ChartTxt(charts_url)
+
+        # 创建下载这本书的进程
+        p = multiprocessing.Pool()
+        # 自己在下载的文件前加上编号，防止有的文章有上，中，下三卷导致有3个第一章
+        num = 1
+        for i in charts_url:
+            p.apply_async(get_ChartTxt, args=(i, title, num))#调用get_CharTxt函数，下载每个章节的小说
+            num += 1
+        print('等待 %s所有的章节被加载......' % (title))
+        p.close()
+        p.join()
         end = time.time()
         print('下载 %s  完成，运行时间  %0.2f s.' % (title, (end - start)))
-        print('开始生成 %s ............' %title)
-        path = os.getcwd()+'./'+title
+        print('开始生成 %s ............' % title)
+        path = os.getcwd() + './' + title
 
         #sort_allCharts(path,"%s.txt"%title)
         #shutil.rmtree(title)
         return
 
-#   通过章节url下载内容，并返回下一页的url
-def get_ChartTxt(url):
-
-    doc = get_pages(url)
-
-    #获取章节名称
-    subtitle = doc('.bookname h1').text()
-    '''
-    # 判断是否有感言
-    if re.search(r'.*?章',subtitle) is None:
-        return
- '''
-    #获取章节文本
-    content = doc('#content').text()
-    #单独写入这一章
-
-    with open(r'%s.txt' %(subtitle),'w',encoding='utf-8') as f:
-        f.write('\n\n'+subtitle+'\n\n'+content)
-    f.close()
-    print(subtitle,'下载成功')
-    return
 
 
 '''
@@ -89,7 +127,6 @@ def process_getAllBook(base):
         #doc = parse_url(book_Url)
         #book_index = doc('.listbox .opendir a').attr("href")
         book_indexUrl.append(book_Url)
-
 def sort_allCharts(path,filename):
     lists = os.listdir(path)#获取当前文件夹中的文件名称列表
     lists.sort(key=lambda i:int(re.match(r'(\d+)',i).group()))#把章节名进行排序
